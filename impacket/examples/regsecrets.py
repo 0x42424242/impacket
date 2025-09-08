@@ -947,7 +947,7 @@ class LSASecrets():
 
     def exportSecrets(self, baseFileName, openFileFunc = None):
         if len(self.__secretItems) > 0:
-            fileName = baseFileName + '.secrets'
+            fileName = baseFileName + '.temp1'
             fd = openFile(fileName, openFileFunc=openFileFunc)
             for item in self.__secretItems:
                 fd.write(item + '\n')
@@ -956,7 +956,7 @@ class LSASecrets():
 
     def exportCached(self, baseFileName, openFileFunc = None):
         if len(self.__cachedItems) > 0:
-            fileName = baseFileName + '.cached'
+            fileName = baseFileName + '.temp2'
             fd = openFile(fileName, openFileFunc=openFileFunc)
             for item in self.__cachedItems:
                 fd.write(item + '\n')
