@@ -261,8 +261,8 @@ class GetUserSPNs:
         # traditional SPN based on person search
         else:
             searchFilter = "(&"
-            searchFilter += "(" + filter_person + ")"
             searchFilter += "(" + filter_not_disabled + ")"
+            searchFilter += "(" + filter_person + ")"
 
             if self.__requestUser is not None:
                 searchFilter += '(sAMAccountName:=%s)' % self.__requestUser
